@@ -1953,7 +1953,8 @@ Run in this order. Each step says what it proves.
       Not yet seen through `main.sh` and HA's sensor.
       Boot time (2026-10-14, Show 8): hassmic up 64 s after the kernel started, 90-120 s from the plug. `alexa-off.sh` took
       36 s of it (a `pm list packages <name>` per absent package, 1.4 s each under the boot load) -> one listing, 17 s;
-      hassmic up at 40 s. The 22 s of Android's own boot and the bootloader remain.
+      hassmic up at 40 s. `hassmic -X` (`ring_wait`, root's `main.sh` at the satellite start, killed before hassmic starts)
+      shows the waiting band (red, two green lights: purple and cyan looked too much like the listening ring) from Android's 22 s, and hassmic itself until its self test passes (`ring_waiting`). The 22 s of Android's own boot and the bootloader remain.
       Installed and verified on a real Show 8 (2026-10-14): voice question answered, buttons, ESPHome entities, volume
       and mute keys, the band during a command and a reply. Found: the mute latch comes up on after power-on and lets go
       by itself 20-80 s later (12 s 0, 16 s 2, 17 s 1, released 36 s in one boot, 50 s and 83 s in two): hassmic started
@@ -2015,5 +2016,7 @@ Run in this order. Each step says what it proves.
       `kiosk_grants` gives it the permissions it would ask a person for (never the microphone), `rotation_lock` puts the
       rotation settings back (the app flipped the screen by itself).  `lockdown.sh`: setting `kiosk_internet` (default on)
       lets that uid out to the internet with one rule, INPUT TCP 2324 (its web page) and 6053 (its ESPHome API) from
-      private addresses only.  `install_keyboard` in the guided
+      private addresses only.  `identify_duration` setting (the rainbow's length).  A band while the satellite starts
+      (`hassmic -X`, `ring_wait`; red with two green lights going round, from root's `main.sh` until the self test
+      passes: Android is up ~28 s into the boot, hassmic ~35 s later on the Show 8).  `install_keyboard` in the guided
       setup offers Simple Keyboard (the image has no input method).  Lux readings agree with the app's within ~1 lx in dim light.

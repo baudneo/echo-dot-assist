@@ -53,7 +53,8 @@ extern pthread_mutex_t core_lock;               /* guards state, the client sock
 extern const char *core_name;                   /* "Echo Dot 2 5695c4": the model and the MAC's end (main.c name_make) */
 const char *core_node_name(void);               /* "echo-dot-2-5695c4": the ESPHome device (host) name */
 void core_node_of(const char *name, char node[64]);  /* any Echo's node from its name ("Echo Dot 2 5695c4"); a node stays */
-void core_identify(void);                       /* rainbow ring for 10 s and a sound: which Echo is this */
+void core_identify(void);                       /* rainbow ring (setting identify_duration, default 10 s) and a sound: which Echo is this */
+int core_identify_secs(int set);                /* the duration in s; set >= 0 changes it, -1 asks */
 /* Setup (OOBE): 1 from an install or a reset until Home Assistant took the Echo on (its voice assistant subscribed:
  * state/adopted); the ring shows stock's setup spinner meanwhile.  Any thread */
 int  core_oobe(void);

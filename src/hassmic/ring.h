@@ -35,4 +35,9 @@ void ring_light_set(const struct ring_light *l, unsigned flash_ms);  /* flash_ms
  * all the apps'); -1 where the ring is LEDs.  set < 0 reads. */
 void ring_level(int dbfs10);
 int  ring_band_rows(int set);
+/* hassmic -X: the band's waiting pattern until killed (root's main.sh, from the satellite's start to hassmic's); 1 where the ring is LEDs */
+int  ring_wait(void);
+/* The same pattern from hassmic's own start until the self test passes (the mixer's audio arrives), so the band does not
+ * go dark between root's waiter and Alexa being ready; no-op on the LED ring */
+void ring_waiting(int on);
 #endif

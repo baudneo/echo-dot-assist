@@ -202,6 +202,7 @@ const HELP = {
   bluetooth_announcement_language: { help: 'The language of those sentences. Home Assistant does not tell the Echo which language your voice assistant speaks, so pick the one that matches its voice.' },
   sendspin_unpaired: { help: 'Lets any Music Assistant server on the network play here without pairing. Off: only a server given this Echo\'s "Sendspin pairing token" (a diagnostic entity in Home Assistant) may play.' },
   kiosk_internet: { help: 'Kiosk Satellite, if you installed it as the Echo\'s screen, may reach the internet while this is on: for its own updates and for web pages it shows (iframes, dashboards). Only that app gets out: the Echo\'s own voice satellite stays on your network except for what it needs, and Amazon\'s software stays cut off. Off: Kiosk Satellite can reach your network only, so it shows Home Assistant but cannot update itself or load outside pages. On by default. Takes effect within seconds.' },
+  identify_duration: { help: 'How long the rainbow shows (on the ring, or the band on a screen) when you press Identify here, in Home Assistant, or from the setup app. Default 10 seconds. The sound plays once.' },
   online_updates: { help: 'Where new versions come from. Release: tested releases only. Beta: every new build, plus releases. Off: nothing is fetched. The Echo downloads them itself from the project\'s releases on GitHub, not through this browser or Home Assistant, so it needs internet access to github.com: an Echo on a network kept off the internet cannot use this, and switching it on first checks that GitHub answers. The Echo\'s "Firmware" entity in Home Assistant then shows what is new and installs it; every update is signature-checked, and the Echo falls back by itself if a new version does not stay up.',
     status: () => updCheck.busy ? h('div', { class: 'callout info' }, icon('net'), h('p', {}, 'Checking that this Echo can reach GitHub…'))
       : updCheck.why ? h('div', { class: 'callout bad big' }, icon('warn'), h('div', { class: 'grow' },
@@ -448,9 +449,9 @@ $('ask').onclick = async () => {
   done('No button press came. Try again.', true);
 };
 
-// Identify (main.c core_identify): rainbow ring for 10 s and stock's setup sound, on this Echo or another logged-in one
+// Identify (main.c core_identify): rainbow ring for identify_duration and stock's setup sound, on this Echo or another logged-in one
 async function identify(e, name) {
-  try { await e.call('POST', '/api/identify'); toast(`${name}: rainbow on the ring for 10 seconds`); } catch (err) { toast(`${name}: ${errText(err)}`); }
+  try { await e.call('POST', '/api/identify'); toast(`${name}: rainbow shown`); } catch (err) { toast(`${name}: ${errText(err)}`); }
 }
 $('identify').onclick = () => identify(echo, echo.hello.name);
 

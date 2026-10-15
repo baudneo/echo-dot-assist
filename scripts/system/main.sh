@@ -426,6 +426,14 @@ satellite)
     [ "$D" != "$SYS" ] && chmod 755 $D
     # A binary in /data wins over the installed one: lets a new build be tried without a trip through TWRP.
     BIN=$D/hassmic; [ -x /data/local/hassmic/hassmic ] && BIN=/data/local/hassmic/hassmic
+    # Models with a light band (it ships ringbar.dex): purple and cyan along the bottom of the screen while the rest of
+    # this start runs, ~35 s on the Echo Show 8 before hassmic is there to draw anything (2026-10-14).  Same user and groups
+    # as hassmic: its renderer does what hassmic's does.  Killed below, just before hassmic starts.
+    WAITBAR=
+    if [ -f $D/ringbar.dex ]; then
+        $D/runas -r 3990 $DAEMON_USER $DAEMON_GROUPS $BIN -X >> $LOG 2>&1 &
+        WAITBAR=$!
+    fi
     {
         rotate_log
         echo "== satellite start, uptime $(cut -d. -f1 /proc/uptime)s, $(cat $D/VERSION 2>/dev/null || echo factory) from $D"
@@ -463,6 +471,7 @@ satellite)
     ) 2>&1 | stamped >> $LOG &
     # The bootstrap counted this start as an attempt; a minute of hassmic running counts as success.
     (sleep 60; pidof hassmic > /dev/null && echo 0 > $OTA/tries) &
+    [ -n "$WAITBAR" ] && kill $WAITBAR 2>/dev/null
     fast=0
     while :; do
         t0=$(cut -d. -f1 /proc/uptime)

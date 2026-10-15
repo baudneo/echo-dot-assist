@@ -692,13 +692,15 @@ static atomic_llong dnd_clear_at;
 /* Identify (settings page, Home Assistant's button): which of several Echos is this one.  Amazon's rainbow (zzz_rainbow,
  * a loop, the same file on donut, biscuit and radar) for IDENTIFY_MS and stock's setup beacon sound, whatever the wake
  * sound setting says: it was asked for.  Again while it runs: longer, and the sound once more.  Lock held or not. */
-#define IDENTIFY_MS 10000
+#define IDENTIFY_MS 10000                       /* the default of setting identify_duration */
 static atomic_llong identify_until;
+static atomic_int identify_ms = IDENTIFY_MS;
+int core_identify_secs(int set) { if (set >= 0) atomic_store(&identify_ms, set * 1000); return atomic_load(&identify_ms) / 1000; }
 void core_identify(void)
 {
-    if (!atomic_exchange(&identify_until, mono_ms() + IDENTIFY_MS)) led("-s", "zzz_rainbow");
+    if (!atomic_exchange(&identify_until, mono_ms() + atomic_load(&identify_ms))) led("-s", "zzz_rainbow");
     sound_queue(SND_IDENTIFY);
-    fprintf(stderr, "identify: rainbow for %d s\n", IDENTIFY_MS / 1000);
+    fprintf(stderr, "identify: rainbow for %d s\n", core_identify_secs(-1));
 }
 int core_dnd(int set)
 {
@@ -1927,9 +1929,10 @@ static void *selftest_thread(void *arg)
 {
     (void)arg;
     for (int i = 0; i < 300 && !atomic_load(&quit); i++) {          /* 30 s */
-        if (atomic_load(&cap_bytes) >= CAP_RATE * 2) { fprintf(stderr, "self test: passed\n"); ota_healthy(); return NULL; }
+        if (atomic_load(&cap_bytes) >= CAP_RATE * 2) { fprintf(stderr, "self test: passed\n"); ring_waiting(0); ota_healthy(); return NULL; }
         usleep(100000);
     }
+    ring_waiting(0);
     fprintf(stderr, "self test: no audio from the mixer within 30 s: this version does not become the fallback\n");
     return NULL;
 }
@@ -2118,8 +2121,9 @@ int main(int argc, char **argv)
 {
     const char *manifest = NULL, *input = board.keypad; int port = 0, print_mdns = 0, o;
     micgain_init(&mic_gain, MICGAIN_LEVEL);            /* until the protocol has its saved settings (Wyoming: always) */
-    while ((o = getopt(argc, argv, "P:p:n:w:m:b:z:o:a:i:W:G:LEVSTB")) != -1) switch (o) {
+    while ((o = getopt(argc, argv, "P:p:n:w:m:b:z:o:a:i:W:G:LEVSTBX")) != -1) switch (o) {
         case 'G': return ring_generate(optarg);     /* root, at the satellite's start (main.sh leds) */
+        case 'X': return ring_wait();              /* root, from the satellite's start until hassmic runs (main.sh) */
         case 'P': proto = !strcmp(optarg, "wyoming") ? &proto_wyoming : &proto_esphome; break;
         case 'p': port = atoi(optarg); break;
         case 'n': core_name = optarg; break;
@@ -2137,7 +2141,7 @@ int main(int argc, char **argv)
         case 'S': print_mdns = 1; break;
         case 'B': use_bt = 0; break;
         case 'T': { char tok[160]; sendspin_init(); sendspin_pairing_token(tok, sizeof tok); puts(tok); return 0; }
-        default: fprintf(stderr, "usage: hassmic [-P esphome|wyoming] [-p port] [-n name] [-w local|remote] [-m manifest] [-b input-device] [-z port] [-o port] [-a port] [-i port] [-W port] [-G dir] [-L] [-E] [-V] [-S]\n"); return 2;
+        default: fprintf(stderr, "usage: hassmic [-P esphome|wyoming] [-p port] [-n name] [-w local|remote] [-m manifest] [-b input-device] [-z port] [-o port] [-a port] [-i port] [-W port] [-G dir] [-X] [-L] [-E] [-V] [-S]\n"); return 2;
     }
     core_port = port ? port : proto->port;
     if (!core_name) name_make();
@@ -2152,6 +2156,7 @@ int main(int argc, char **argv)
     signal(SIGPIPE, SIG_IGN); signal(SIGCHLD, SIG_IGN); signal(SIGUSR1, on_usr1); signal(SIGUSR2, on_usr2); signal(SIGHUP, on_hup); signal(SIGTTIN, on_ttin); signal(SIGWINCH, on_winch);
     if (access("/system/bin/ledctrl", X_OK)) use_led = 0;
     ring_start(led_run);
+    ring_waiting(1);                    /* until the self test passes: Alexa is not listening before */
     audio_earcon_started = earcon_started;
     led("-u", "scone-setup");           /* a restart inside the pairing window: the window is gone, its chaser would loop on */
     led("-u", "factory-reset");         /* a reset asked for before this start is done (main.sh) */

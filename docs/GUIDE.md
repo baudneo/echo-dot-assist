@@ -246,7 +246,8 @@ Beyond the README's two figures:
   that strip of the screen for itself, 10 pixels by default ("Light band" on the settings page; 0 gives the whole
   screen to the apps and shows no band), so an app shown on the screen is never covered. The light "Light ring" works
   there too, in any colour. The screen wakes for the band and sleeps 5 minutes after the last light (1 minute with
-  the microphones off or in Do not disturb).
+  the microphones off or in Do not disturb). While the Echo starts, from Android being up until hassmic is, the band
+  is red with two green lights going round: when it goes dark, the Echo listens.
 - **Microphone off** plays Alexa's own sounds.
 - Silent and dark at boot.
 - The ring dims with the room's light as on a stock Echo (Amazon's own logic, on by default); a fixed level from Home

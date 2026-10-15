@@ -14,6 +14,7 @@
 
 const struct board board = { .volume_steps = 100 };
 static int muted, dnd_on, spawns_wake, spawns_timeout, last_timeout;
+int settings_peek(const char *name, char *out, size_t cap) { (void)name; (void)out; (void)cap; return -1; }
 int core_muted(void) { return muted; }
 int core_dnd(int set) { (void)set; return dnd_on; }
 int core_led_brightness(int set) { (void)set; return 100; }

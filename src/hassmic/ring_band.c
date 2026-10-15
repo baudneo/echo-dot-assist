@@ -21,6 +21,7 @@
 #include "ring.h"
 #include "board.h"
 #include "core.h"
+#include "settings.h"
 #include <errno.h>
 #include <limits.h>
 #include <math.h>
@@ -115,7 +116,7 @@ static void runner(struct rgb *led, long long t, int lap, struct rgb c, float ta
 static atomic_int level_db = -1000;      /* the talker, dBFS x 10, from the pipeline's audio (ring_level) */
 static float loud;                       /* smoothed 0..1; the band thread's */
 
-enum pid { P_RESET, P_VOLUME, P_LISTEN, P_THINK, P_TALK, P_END, P_CALL_OUT, P_CALL_IN, P_CALL, P_CALL_END, P_ERROR,
+enum pid { P_WAIT, P_RESET, P_VOLUME, P_LISTEN, P_THINK, P_TALK, P_END, P_CALL_OUT, P_CALL_IN, P_CALL, P_CALL_END, P_ERROR,
            P_MUTE, P_UNMUTE, P_DND, P_IDENTIFY, P_LOGIN, P_PAIRING, P_TIMER, P_TIMER_SHORT, P_SETUP, P_COUNT };
 /* priority order (first wins: the volume over a reply, as the ring shows it) and how long each shows: -1 until unset */
 static const struct { const char *name; int ms; } pats[P_COUNT] = {
@@ -133,6 +134,7 @@ static const struct { const char *name; int ms; } pats[P_COUNT] = {
     [P_PAIRING] = { "scone-setup", -1 },
     [P_TIMER] = { "ready-timer", -1 }, [P_TIMER_SHORT] = { "ready-timer-short", 2233 },
     [P_SETUP] = { "setup-mode", -1 },
+    [P_WAIT] = { "hassmic-wait", -1 },               /* ours, first: over the setup spinner too; ring_wait (root kills it) / ring_waiting */
 };
 
 /* Each as the Dot's file of that name plays it (timings and colours read off donut's led-resources, 2026-10-13) */
@@ -165,6 +167,15 @@ static void draw(int p, struct rgb *led, long long t, int arg)
     case P_LOGIN: all(led, scale(hex(BLUE), wave(t, 1800))); break;                   /* blue breathing */
     case P_PAIRING: runner(led, t, 1060, hex(BLUE), 0); break;                         /* one blue LED round the ring */
     case P_SETUP: runner(led, t, 1380, hex(ORANGE), 0); break;                         /* one orange LED round the ring */
+    case P_WAIT:                         /* red, with two green ones going round (once in 2.4 s) opposite each other: not a
+                                            colour of any other pattern, so it cannot be taken for one */
+        for (int i = 0; i < LEDS; i++) {
+            float p = (float)(t % 2400) / 2400 * LEDS, d1 = fabsf(fmodf(p - i + 1.5f * LEDS, LEDS) - LEDS / 2.0f),
+                  d2 = fabsf(fmodf(p + LEDS / 2.0f - i + 1.5f * LEDS, LEDS) - LEDS / 2.0f);
+            float g = clamp01(1.5f - fminf(d1, d2));              /* wrapped distance to the nearer head, 1 at the LED */
+            led[i] = mix(scale(hex(RED), 0.7f), hex(GREEN), g);
+        }
+        break;
     case P_RESET: all(led, scale(hex(ORANGE), 0.1f + 0.9f * wave(t, 830))); break;
     case P_TIMER: case P_TIMER_SHORT:    /* groups of three cyan LEDs, blinking against the others, blue at their edges */
         for (int i = 0; i < LEDS; i++) {
@@ -431,6 +442,21 @@ void ring_start(void (*run)(const char *op, const char *name))
     if (pthread_create(&t, NULL, band_thread, NULL)) { fprintf(stderr, "band: no thread\n"); return; }
     pthread_detach(t);
 }
+
+/* hassmic -X: the band while the satellite is not up yet.  Android is ready ~28 s into the boot, hassmic starts ~35 s
+ * (Show 8, 2026-10-14) later, and the screen showed nothing of it.  Root's main.sh starts this first and kills it just
+ * before it starts hassmic; the band's renderer ends with its stdin */
+int ring_wait(void)
+{
+    char v[16];
+    if (!settings_peek("light_band", v, sizeof v)) rows = atoi(v);      /* the page's setting; 0 = no band */
+    if (rows <= 0) return 0;
+    ring_start(NULL);
+    ring_set("hassmic-wait");
+    for (;;) pause();
+}
+
+void ring_waiting(int on) { if (on) ring_set("hassmic-wait"); else ring_unset("hassmic-wait"); }
 
 int ring_custom(void) { return 1; }                 /* Home Assistant's light: drawn here, any colour */
 

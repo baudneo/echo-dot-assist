@@ -55,7 +55,7 @@ What changed for people using the Echo, newest first. Details and measurements a
   page has a new switch, "Kiosk Satellite internet access" (on by default): on, only that app may reach the internet,
   for its updates and for web pages it shows. The voice satellite and Amazon's software stay on your network as before.
   The screen is kept in landscape: Kiosk Satellite kept switching Android's rotation by itself, so the Echo puts the
-  rotation settings back every 10 seconds. The screen's time zone is set in hassmic.conf (TIMEZONE=) and asked at setup. Its web page (port 2324) is reachable from your network. Pings from the local network are answered.
+  rotation settings back every 10 seconds. "Identify duration" on the settings page sets how long the rainbow shows (default 10 s). The screen's time zone is set in hassmic.conf (TIMEZONE=) and asked at setup. Its web page (port 2324) is reachable from your network. Pings from the local network are answered.
   The guided setup offers Simple Keyboard (open source, no network access) for screen models, since the image has no
   keyboard.
 - **Echo Show 8 (1st gen, `crown`): first support.** The Show 8 is the same platform as the Show 5, and a trial run on one
@@ -65,6 +65,8 @@ What changed for people using the Echo, newest first. Details and measurements a
   service is DHA version 2, drvV3 in Amazon's Java MAP). Not tried yet: Bluetooth.
 - **Android models start hassmic about 25 s sooner** (Show 5, Show 8). Turning Alexa off asked Android about every
   Amazon package one call at a time (1.4 s each, 36 s in all on the Show 8); it now asks once.
+- **A red band with two green lights while the Echo Show starts.** From Android being up until Alexa is listening (the
+  microphone's audio arrives), the light band shows red with two green lights going round; when it goes dark, the Echo listens.
 - **Echo Show 8: no "mics off" announcement at power-on.** After a power cycle the microphone switch's latch reads "off"
   until the Echo lets it go by itself, 20 to 80 seconds in; hassmic, now starting sooner, caught it and said "mics off"
   to someone who had not pressed anything. It now shows the state quietly and announces only the release.
