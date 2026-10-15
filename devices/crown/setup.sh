@@ -287,5 +287,6 @@ step_install() {
     ask_adb_wifi
     ask_timezone
     install_satellite || return 1
+    install_keyboard
 }
 
