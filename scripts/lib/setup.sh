@@ -413,7 +413,7 @@ push_preset() {
 # satellite runs; the Echo names itself (model and MAC address, read from its log), people name it in Home Assistant.  Settings to start with (--preset, or asked): an export of another Echo's settings page.  Name and address go to $OUT/setup.env for the final screen.  There is no trial run before
 # it: run.sh does not read hassmic.conf, so a trial announced itself under the default name, and Home Assistant kept that
 # device next to the installed one.
-# ask_adb_wifi: INSTALL=boot models (hassmic.conf is written by scripts/install-boot.sh, which reads ADB_WIFI from the
+# ask_adb_wifi: INSTALL=boot and running models (hassmic.conf is written by scripts/install-boot.sh and install-system.sh, which read ADB_WIFI from the
 # environment).  Closed is the default: the settings page opens adb for 30 min, scripts/adb-wifi.sh opens it with the update key.
 ask_adb_wifi() {
     [ -n "${ADB_WIFI+x}" ] && return 0                  # given on the command line

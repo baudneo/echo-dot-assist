@@ -104,6 +104,7 @@ static int probe(void)
     if (!numid || ioctl(fd, SNDRV_CTL_IOCTL_ELEM_INFO, &in) < 0 || in.type != SNDRV_CTL_ELEM_TYPE_INTEGER
         || (in.value.integer.max - stock) * per < steps || in.count < 1 || in.count > 2) goto none;
     hi = (int)in.value.integer.max; count = (int)in.count;
+    if (board.speaker_gain_limit > stock && board.speaker_gain_limit < hi) hi = board.speaker_gain_limit;
     fprintf(stderr, "speaker gain: \"%s\" %d..%d, stock %d, now %d\n", board.speaker_gain, (int)in.value.integer.min, hi, stock, ctl_read());
     return 1;
 none:
