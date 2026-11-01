@@ -2909,10 +2909,10 @@ Run in this order. Each step says what it proves.
       Bluetooth, the wake lock.  kamakiri-cupcake v1.0.0 pinned (its lk and tee are 8338's).
 - [~] Kiosk Satellite next to hassmic on the screen models (crown, athena; 2026-10-14, `docs/kiosk-satellite.md`).  The app
       (me.jxl.kiosk_satellite, the user's choice) shows dashboards; hassmic stays the voice satellite.  `main.sh`:
-      `kiosk_helper` opens the app once per boot and keeps its update helper running as the shell user (never root),
-      `kiosk_grants` gives it the permissions it would ask a person for (never the microphone).  `lockdown.sh`: setting
+      `kiosk_tick` opens the app whenever hassmic's home shows and keeps its update helper running as the shell user (never root),
+      `kiosk_grants` gives it the permissions it would ask a person for (microphone and camera by their settings).  `lockdown.sh`: setting
       `kiosk_internet` (default on) lets that uid out to the internet with one rule, INPUT TCP 2324 (its web page) and 6053
-      (its ESPHome API) from private addresses only.  `install_keyboard` in the guided setup offers Simple Keyboard (the
+      (its ESPHome API) from private addresses only.  `install_screen_apps` in the guided setup offers Simple Keyboard (the
       image has no input method).  Lux readings agree with the app's within ~1 lx in dim light.
 - [x] Kiosk Satellite microphone for a plugin (2026-10-26, athena, Show 8 2nd gen, Android 9; user's doorbell plugin
       `reolink-doorbell` 1.1.1 inside KS 2026.10.40, a Reolink doorbell on the LAN, talk over Baichuan/ONVIF, no Home
@@ -2924,9 +2924,12 @@ Run in this order. Each step says what it proves.
       VOICE_COMMUNICATION reached the doorbell, without echo; the other two gave nothing and echoed; sound at the
       doorbell poor (cause unmeasured: G.711 talk channel, the doorbell's speaker, or the Voice pipeline's level).
       The plugin's default "Automatic" tries CAMCORDER first and keeps what opens, so it fails here.  Done: setting
-      `kiosk_mic` (settings.c, off by default, page only, not exported); main.sh `kiosk_mic_apply`/`kiosk_mic_sync`
+      `kiosk_mic` (settings.c, off by default, page only, not exported); main.sh `kiosk_perm`/`kiosk_perm_sync`
       grant or revoke RECORD_AUDIO from state/config (revoking ends the app).  Not done: the mechanism behind the
       silent sources; the same on crown and checkers (Android 7.1.2, where audio_android.c's header expects a newer
       recorder to take the input from an older one); the Voice pipeline's level and noise (a recording from
       VOICE_COMMUNICATION next to hassmic's).
-
+- [x] Kiosk Satellite review fixes (2026-11-01, PR #76): `app/AmazonWebView` stays on checkers and cronos (the only provider;
+      checkers had none); `kiosk_tick` replaces once-per-boot: install, reinstall and an ended app handled within 10 s
+      (`mResumedActivity` is hassmic-home), one open a minute; `kiosk_camera` (off); `board.kiosk` instead of the band for the
+      settings; the page shows the rows once root's `kiosk-app` exists; `tests/unit/kiosk_test.py`.  `install_screen_apps` in setup and `scripts/kiosk-install.sh`: newest release, sha256 from GitHub, signer pinned on the PC (`apkcert.py`).

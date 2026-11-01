@@ -123,6 +123,17 @@ debugfs -R "rdump / firmware/athena/rootfs/system/vendor" firmware/athena/images
 
 ## Kiosk Satellite (optional)
 
-Install it yourself if you want the screen to show a dashboard (`adb install`, voice assistant off in the app). hassmic opens it
-at every boot, grants it what it needs (never the microphone), keeps its update helper running and lets only its uid out to
-the internet (setting `kiosk_internet`). Details: `docs/kiosk-satellite.md`.
+Shows a Home Assistant dashboard on the screen; hassmic stays the voice satellite. The guided setup offers it. On an Echo
+that is already installed:
+
+```sh
+scripts/kiosk-install.sh             # over USB
+scripts/kiosk-install.sh <echo-ip>   # over Wi-Fi
+```
+
+That fetches the newest release and Simple Keyboard, and the Echo opens the app by itself. Do its setup from your PC at
+`http://<echo-ip>:2324`, where you can paste the Home Assistant token: scanning a QR code on the Echo needs "Kiosk Satellite
+camera" on the settings page (System). Set its remote admin password: that page is open to your network. Leave the app's voice assistant off, and do not make it the home app.
+
+By hand: `kiosk-satellite-<version>.armeabi-v7a.apk` from its [releases](https://github.com/jxlarrea/kiosk-satellite/releases),
+`adb install`. What the app is allowed, and what it costs: [docs/GUIDE.md](../../docs/GUIDE.md#kiosk-satellite-on-the-screen).

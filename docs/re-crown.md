@@ -106,6 +106,8 @@ downloaded and installed from the settings page on a Show 8.
 
 ## Kiosk Satellite as a display (2026-10-14, trial)
 
+(History, in order: what holds today is in `docs/kiosk-satellite.md`; the app now reaches the internet, `kiosk_tick` opens it whenever hassmic's home shows, and the "open" and "until the next boot" of these notes are done.)
+
 `me.jxl.kiosk_satellite` 2026.10.23 (armeabi-v7a, minSdk 24, Flutter + WebView) installs with `adb install` and starts, but
 needs a WebView provider: with `app/AmazonWebView` (Chromium 118, `com.amazon.webview.chromium`) off the partition the
 Echo had none ("No WebView installed"). It is no longer in crown's `STOCK_APPS_OUT`; after the reboot the provider loads
@@ -129,13 +131,13 @@ reach GitHub through the egress lock).
 
 ## Kiosk Satellite: start, internet, keyboard (2026-10-14)
 
-- Nothing started the app after a boot (no HOME category: hassmic-home is the home screen). `main.sh` `kiosk_helper` now
+- (Superseded 2026-11-01: `kiosk_tick` opens it whenever the home screen shows, `docs/kiosk-satellite.md`.) Nothing started the app after a boot (no HOME category: hassmic-home is the home screen). `main.sh` `kiosk_helper` now
   opens it once with `monkey` (as shell) when it is not running, 10 s after boot_completed, then keeps the update helper up.
 - Egress: setting `kiosk_internet` (page, System; screen models only, not exported, default on since the remote admin
   entry below). `lockdown.sh` `kiosk_state` reads `state/config`: anything but `kiosk_internet=off` opens it and adds `-m owner --uid-owner <uid of KIOSK_PACKAGE from
   packages.list> -j RETURN` before the gid rule. Checked on the Echo: uid 10000 reaches 1.1.1.1:80, shell user times out;
   Amazon's daemons have other uids.
-- `install_keyboard` in `scripts/lib/setup.sh` (crown `step_install`, asked, default no): Simple Keyboard release 148
+- `install_keyboard` in `scripts/lib/setup.sh` (now `install_screen_apps` and `keyboard_get`) (crown `step_install`, asked, default no): Simple Keyboard release 148
   (6.7), sha256 pinned, `adb install`, `ime enable` + `ime set`.
 - Not in setup: Kiosk Satellite itself (the user picks the app: VACA and others exist).
 

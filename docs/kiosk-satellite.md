@@ -1,42 +1,43 @@
 # Kiosk Satellite on an Echo Show with hassmic
 
 [Kiosk Satellite](https://kiosksatellite.com/) (KS, `me.jxl.kiosk_satellite`, Flutter + WebView) is the optional dashboard
-on the Shows (`crown` Show 8 1st gen, `checkers` Show 5, `athena` Show 8 2nd gen): the screen shows a Home Assistant
+on the Shows (`crown` Show 8 1st gen, `athena` Show 8 2nd gen, `checkers` Show 5, `cronos` Show 5 2nd gen): the screen shows a Home Assistant
 dashboard, hassmic is the voice satellite. The two share the Echo and nothing else; this page is how they are kept
 apart, and what hassmic does for the app so that it works without anyone at a keyboard. The code is in
-`scripts/system/main.sh` (`kiosk_helper`, `kiosk_grants`), `scripts/device/lockdown.sh` (`kiosk_state`,
+`scripts/system/main.sh` (`kiosk_tick`, `kiosk_grants`), `scripts/device/lockdown.sh` (`kiosk_state`,
 `keep`), `devices/<codename>/device.conf` (`KIOSK_PACKAGE`), `devices/athena/sepolicy.rules`. Findings per model:
-`re-crown.md` "Kiosk Satellite", `re-athena.md`.
+`re-crown.md` "Kiosk Satellite", `re-checkers.md`.
 
-KS itself is not part of `scripts/setup.sh` (the user picks the app; VACA and others exist). Install it by hand
-(`adb install kiosk-satellite-<version>.armeabi-v7a.apk`, minSdk 24, 32-bit ARM) and, if the screen needs one, the
-keyboard step of setup (Simple Keyboard 6.7: the Echo has no input method of its own). Needs a WebView provider
-(crown: `app/AmazonWebView` must stay on the partition). Turn KS's own voice assistant off: hassmic is the satellite.
+The guided setup offers KS (default no; `install_screen_apps`, VACA and others stay possible by hand), and
+`scripts/kiosk-install.sh [echo-ip]` does it on an installed Echo: newest release (armeabi-v7a, minSdk 24), checked against GitHub's
+sha256 and, on the PC before anything reaches the Echo, against the signing certificate pinned in `scripts/lib/kiosk.sh` (`scripts/lib/apkcert.py`: only a zip with no comment and no zip64, so that it and Android read the same block; Android then verifies that block),, plus Simple Keyboard 6.7 (the Echo has no input method). Needs a WebView provider
+(crown, checkers, cronos: `app/AmazonWebView` is the only one, so it stays on the partition; an Echo that lost it gets it back with the update that brings this). Turn KS's own voice assistant off: hassmic is the satellite.
 
 ## Who does what
 
 | | hassmic | Kiosk Satellite |
 |---|---|---|
 | Microphone, wake word, TTS, Assist pipeline | yes | no (denied the microphone) |
-| Screen: home activity, overscan, light band layer | `org.hassmic.home` stays HOME | opened over it once per boot (`monkey`) |
+| Screen: home activity, overscan, light band layer | `org.hassmic.home` stays HOME | opened over it whenever the home screen shows (`monkey`) |
 | Dashboard, HA web UI | no | yes |
 | Wake word arbitration with tablets | `arbitration_mode` "kiosk" (UDP 2330, `kiosk-arbitration.md`) | speaks the same protocol |
 | Own updates | not hassmic's business; the helper below | installs its updates without a dialog |
 
 KS is **not** made the home app (it declares no HOME category; the home activity keeps the overscan and the band). If
-the app crashes the plain home screen shows until the next boot or `monkey -p me.jxl.kiosk_satellite -c
-android.intent.category.LAUNCHER 1`.
+the app ends (a crash, its own update, a permission taken away) or was only just installed, `kiosk_tick` sees our home
+screen on top within 10 s and opens it, half a minute after the last open at the soonest and a minute apart while it does not stay; it takes 15-30 s to come up (checkers: on screen 34 s after boot_completed).
 
 ## Permissions
 
-`main.sh` `kiosk_grants` applies these once per boot (before the app is opened; idempotent), as root:
+`main.sh` `kiosk_grants` applies these as root when `kiosk_tick` first sees an install or update of the app, within 10 s (before the app is opened; idempotent):
 
 | Permission | Why |
 |---|---|
-| `CAMERA`, `ACCESS_COARSE_LOCATION`, `ACCESS_FINE_LOCATION`, `READ/WRITE_EXTERNAL_STORAGE` (runtime, `pm grant`) | dashboards that use them, the app's settings and downloads; nobody is there to answer a dialog |
+| `ACCESS_COARSE_LOCATION`, `ACCESS_FINE_LOCATION`, `READ/WRITE_EXTERNAL_STORAGE` (runtime, `pm grant`) | dashboards that use them, the app's settings and downloads; nobody is there to answer a dialog |
 | `SYSTEM_ALERT_WINDOW`, `WRITE_SETTINGS`, `GET_USAGE_STATS`, `REQUEST_INSTALL_PACKAGES` (app ops, `appops set ... allow`) | overlays, screen brightness and timeout, the foreground check, installing its own updates |
-| `dumpsys deviceidle whitelist +<pkg>`, `dpm set-active-admin <pkg>/.KioskAdminReceiver` | no doze for the dashboard and its ESPHome server; the device admin is what lets it turn the screen off (force-lock; it has no other admin power here) |
+| `dumpsys deviceidle whitelist +<pkg>`, `dpm set-active-admin <pkg>/.KioskAdminReceiver` | no doze for the dashboard and its ESPHome server; the device admin is what lets it turn the screen off (force-lock: the only policy `dumpsys device_policy` lists on 2026.10.45, checkers; a later version could ask for more) |
 | **`RECORD_AUDIO` denied** (`pm revoke` + `appops set ... deny`) unless the setting `kiosk_mic` is on (below) | hassmic owns the microphone and the wake word; the app would hear the wake sound and replies, and its own voice assistant is off |
+| **`CAMERA` denied** the same way unless the setting `kiosk_camera` is on | a camera is not something to hand out because a dashboard might want it |
 
 Granted by installing: `INTERNET`, network and Wi-Fi state, multicast, wake lock, vibrate, Bluetooth, boot receiver,
 foreground service, battery-optimization exemption, audio settings.  Not available on Android 9 and so skipped without
@@ -50,30 +51,38 @@ path installs without a dialog.
 The app's content provider `content://me.jxl.kiosk_satellite.update-helper/start` returns a script (`CLASSPATH` = the
 APK, a per-uid token) that starts `app_process ... UpdateHelper serve <uid> <token>` under the name
 `ks-update-helper-<uid>`: the app's own code listening on a local TCP socket, through which the app installs its updates
-(Home Assistant's update entity, or its own page) without a dialog. Its documentation has it piped into `sh` from adb
-after every boot; `main.sh` `kiosk_helper` does it instead:
+(Home Assistant's update entity, or its own page) without a dialog. The provider is exported with no permission in the manifest (2026.10.45), so only the app's own code can tell who may read the token; not checked. Another app on the Echo might get a shell-uid helper that way: install nothing else you do not trust. Its documentation has it piped into `sh` from adb
+after every boot; `main.sh` `kiosk_ask_helper` does it instead:
 
-- 10 s after boot: as the shell user (what adb is on a locked device: `pm install` is allowed to it) with groups
-  `log,inet` (`inet`: its `ServerSocket` fails with "Permission denied" without it), never as root; through `runas`
+- within 10 s of seeing the app: as the shell user (what adb is on a locked device: `pm install` is allowed to it) with groups
+  `shell,log,inet` (`inet`: its `ServerSocket` fails with "Permission denied" without it), never as root; through `runas`
   (no `su` on the image).
-- again every 5 minutes: the script is idempotent ("already running"), an update of the app ends the process, so the
+- again about every 5 minutes, and at once after an update: the script is idempotent ("already running"), an update of the app ends the process, so the
   next round starts the new one.
 - boot.log: `kiosk update helper: started` once, silence while it is up, otherwise its last line.
 
 The script's `status` check is a client connecting to the helper's socket from **su**: it is why the helper looked dead on
 the Show 8 2nd gen (below).
 
-## Internet access
+What that costs: the helper is the app's own code as the shell user, so the app can do what an adb shell can, `pm grant`
+included. The settings above are Android's permissions, no wall against an app that wants past them. docs/SECURITY.md
+says the same to users.
 
-**Microphone for a plugin** (setting `kiosk_mic`: settings page, System; screen models only; default off; not exported).
-`main.sh` `kiosk_grants` grants or revokes `RECORD_AUDIO` and its app op from `state/config` (`kiosk_mic=on`), and
-`kiosk_mic_sync` looks again every 2 s, so a change reaches the app at once (revoking ends the app's process).
+## Microphone and camera
+
+Settings `kiosk_mic`, `kiosk_camera` (settings page, System, shown once the app is installed; default off; not exported).
+`main.sh` `kiosk_grants` grants or revokes the permission and its app op from `state/config`, and `kiosk_perm_sync` looks
+again every 2 s, so a change reaches the app at once. Revoking ends the app's process; `kiosk_tick` opens it again.
+The page learns the app is there from `/data/local/hassmic/kiosk-app`, root's: the daemon's user cannot read packages.list.
+
 Measured on a Show 8 2nd gen (athena, Android 9, 2026-10-26) with a doorbell plugin talking while hassmic listened:
 hassmic's `VOICE_RECOGNITION` capture never stopped or reopened, "Alexa" answered during and after every call, and
 the app's own recorders opened for all three sources it offered, but only `VOICE_COMMUNICATION` reached the doorbell
 (no echo, which is the HAL's call pipeline with its echo canceller); `VOICE_RECOGNITION` and `CAMCORDER` (what
 "Automatic" took) delivered nothing. Why they are silent is inferred from docs/re-checkers.md (one consumer of the
 ASR pipeline, no pipeline for the others), not measured.
+
+## Internet access
 
 The firewall invariant stays (`lockdown.sh`): every process on the Echo may reach local addresses only, hassmic's group
 (3990) anything, Amazon's daemons nothing. KS needs more than the LAN when HA is reached by an external or hosted
@@ -98,3 +107,11 @@ said "Could not start the update helper" every 5 minutes while the helper was in
 `devices/athena/sepolicy.rules` (`allow netd su {tcp,udp,rawip}_socket { read write getattr getopt setopt ioctl }`),
 installed with the policy by `scripts/install-system.sh` (a reboot loads it); the raw system calls of `netio.h` stay as
 a second line. The app itself runs as `untrusted_app` and was never affected. Not seen on crown or checkers (Android 7).
+
+## Rotation
+
+The Echo has no accelerometer. checkers' panel is 480x960, portrait by nature, measured 2026-11-01; cronos and crown get the same settings, `ANDROID_SETTINGS` (`accelerometer_rotation=0`, `user_rotation=1`) and `KIOSK_ROTATION=1`, cronos as the same design and crown from its 2026-10-14 notes, neither measured with this code. athena has neither: `wm size` on one has not been looked at, and its fresh setup reported no problem, which says it is landscape by nature without showing it. The app itself writes `accelerometer_rotation=1`, `user_rotation=0` about 5 s after it opens (checkers 2026-11-01); with no sensor Android keeps the rotation it has until something makes it look again, which a reboot or a killed app did not, and a reinstall did: portrait. So where device.conf has `KIOSK_ROTATION`, `kiosk_tick` looks at the rotation itself every 10 s and puts both settings back: after a restart of the app the screen can show portrait for up to that long (checkers: once in three forced stops).
+
+## Screen timeout
+
+hassmic sets `screen_off_timeout` (5 min, 1 min muted or in Do Not Disturb, `ring_band.c`) and the app may set it too (`WRITE_SETTINGS`), so whichever wrote last holds. Not measured together.
